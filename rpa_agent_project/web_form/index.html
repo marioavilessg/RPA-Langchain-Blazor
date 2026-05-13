@@ -156,6 +156,9 @@
         const recorder = (() => {
             let recording = false;
             let steps = [];
+            let lastActionAt = null;
+            const MIN_WAIT_MS = 250;
+            const MAX_WAIT_MS = 10000;
             const FIELD_PLACEHOLDERS = {
                 nombre: "{{nombre}}",
                 precio: "{{precio}}",
@@ -177,14 +180,52 @@
                 return Boolean(el.closest(".recorder-card"));
             }
 
+            function addElapsedWait(now) {
+                if (lastActionAt === null) return;
+
+                const elapsed = Math.round((now - lastActionAt) / 100) * 100;
+                if (elapsed >= MIN_WAIT_MS) {
+                    steps.push({ type: "wait", ms: Math.min(elapsed, MAX_WAIT_MS) });
+                }
+            }
+
+            function recordStep(step) {
+                const now = Date.now();
+                addElapsedWait(now);
+                steps.push(step);
+                lastActionAt = now;
+                updateCount();
+            }
+
+            function recordFieldStep(type, selector, step) {
+                const now = Date.now();
+                const lastStep = steps[steps.length - 1];
+                const isSameField =
+                    lastStep &&
+                    lastStep.type === type &&
+                    lastStep.target &&
+                    lastStep.target.value === selector;
+
+                if (isSameField) {
+                    steps[steps.length - 1] = step;
+                    lastActionAt = now;
+                    updateCount();
+                    return;
+                }
+
+                addElapsedWait(now);
+                steps.push(step);
+                lastActionAt = now;
+                updateCount();
+            }
+
             function handleClick(e) {
                 if (!recording) return;
                 const el = e.target;
                 if (shouldIgnore(el)) return;
-                if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) return;
+                if (["INPUT", "SELECT", "TEXTAREA", "OPTION"].includes(el.tagName)) return;
 
-                steps.push({ type: "click", target: targetFor(el) });
-                updateCount();
+                recordStep({ type: "click", target: targetFor(el) });
             }
 
             function handleInput(e) {
@@ -195,9 +236,7 @@
 
                 const selector = getSelector(el);
                 const placeholder = FIELD_PLACEHOLDERS[el.name || el.id] || el.value;
-                steps = steps.filter(s => !(s.type === "type" && s.target.value === selector));
-                steps.push({ type: "type", target: targetFor(el), value: placeholder });
-                updateCount();
+                recordFieldStep("type", selector, { type: "type", target: targetFor(el), value: placeholder });
             }
 
             function handleChange(e) {
@@ -208,9 +247,7 @@
 
                 const selector = getSelector(el);
                 const placeholder = FIELD_PLACEHOLDERS[el.name || el.id] || el.value;
-                steps = steps.filter(s => !(s.type === "select" && s.target.value === selector));
-                steps.push({ type: "select", target: targetFor(el), value: placeholder });
-                updateCount();
+                recordFieldStep("select", selector, { type: "select", target: targetFor(el), value: placeholder });
             }
 
             function updateCount() {
@@ -230,6 +267,7 @@
             return {
                 start() {
                     steps = [];
+                    lastActionAt = null;
                     recording = true;
                     document.addEventListener("click", handleClick, true);
                     document.addEventListener("input", handleInput, true);
@@ -243,6 +281,7 @@
                     document.removeEventListener("input", handleInput, true);
                     document.removeEventListener("change", handleChange, true);
                     steps.push({ type: "wait_for_text", target: { by: "css", value: "#toast" }, contains: "Guardado" });
+                    lastActionAt = null;
                     setButtons(false);
                     updateCount();
                 },
@@ -250,7 +289,7 @@
                     const workflow = {
                         id: "alta_producto",
                         titulo: "Alta de Producto",
-                        descripcion: "Procedimiento para dar de alta un producto en el formulario web local.",
+                        descripcion: "Procedimiento para dar de alta un producto en el formulario web local. Rellena nombre, precio, stock y categoria, pulsa Guardar y espera el mensaje de confirmacion.",
                         app: "formulario_productos",
                         url: window.location.origin || "http://localhost:8081",
                         tags: ["alta", "producto", "formulario", "inventario"],
