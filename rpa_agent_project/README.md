@@ -1,4 +1,4 @@
-# Practica RPA + RAG con LangChain
+# Practica RPA + RAG con LangChain y LangGraph
 
 Proyecto de agente autonomo que usa tools para buscar procedimientos RPA en ChromaDB, extraer parametros desde lenguaje natural y ejecutar un workflow con Playwright sobre un formulario web local.
 
@@ -15,7 +15,13 @@ Usuario -> app.py chat CLI
        -> procedures/*.json -> agent/runner.py -> web_form/index.html
 ```
 
-Se usa `langchain.agents.create_agent` porque LangChain 1.x ya construye un grafo con soporte de tool calling y acepta `MemorySaver` como checkpointer para mantener chat multi-turno.
+## Eleccion LangChain vs LangGraph
+
+La implementacion principal usa `langchain.agents.create_agent` porque la parte base de la practica acepta LangChain 1.x y esta API deja claro que el agente, y no `app.py`, decide cuando invocar las tools. `app.py` solo crea una sesion, pasa los mensajes al agente y muestra las trazas.
+
+En LangChain 1.x, `create_agent` compila internamente un grafo de LangGraph. Por eso el objeto creado en `agent/agent.py` es un `CompiledStateGraph` y permite conectar `MemorySaver` como checkpointer con un `thread_id` estable para mantener una conversacion multi-turno.
+
+La alternativa `langgraph.prebuilt.create_react_agent` o un `StateGraph` escrito a mano seria mas adecuada si se quisieran separar nodos explicitos de busqueda RAG, validacion, confirmacion humana y ejecucion RPA. En esta entrega se prioriza `create_agent` para mantener el agente reactivo con tool calling y se usa LangGraph para la memoria y el runtime interno.
 
 ## Instalacion
 

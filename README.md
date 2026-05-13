@@ -1,4 +1,4 @@
-# Practica RPA + RAG + LangChain + MAUI
+# Practica RPA + RAG + LangChain/LangGraph + MAUI
 
 Proyecto organizado como monorepo para entregar la practica completa.
 
@@ -45,7 +45,15 @@ Puedes comprobar que el servidor responde con:
 Invoke-WebRequest http://localhost:1234/v1/models
 ```
 
-## 3. Orden de arranque
+## 3. Eleccion LangChain vs LangGraph
+
+El backend usa `langchain.agents.create_agent` como API principal del agente porque encaja con el requisito base de LangChain 1.x y evita cablear manualmente el flujo RAG -> extraccion -> RPA. La decision de llamar a `search_procedures`, `extract_parameters`, `run_workflow` o `list_procedures` queda en manos del modelo mediante tool calling.
+
+Aunque se usa la API de LangChain, `create_agent` en LangChain 1.x compila el agente como un grafo de LangGraph. En este proyecto se comprueba como `CompiledStateGraph` y se configura con `MemorySaver` y `thread_id` para conservar el estado de chat multi-turno.
+
+La opcion de implementar un `StateGraph` propio de LangGraph tendria sentido para una version ampliada con nodos explicitos de validacion, confirmacion humana antes de ejecutar el RPA, gestion de errores y varios workflows. Para esta entrega se prioriza una solucion base clara con tools tipadas y trazas visibles, manteniendo LangGraph como runtime y memoria del agente.
+
+## 4. Orden de arranque
 
 Usa terminales separadas para mantener vivos los servicios:
 
