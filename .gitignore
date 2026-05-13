@@ -26,6 +26,9 @@ obj/
 *.user
 *.suo
 
+# Frontend
+node_modules/
+
 # IDE
 .idea/
 .vscode/

@@ -1,53 +1,129 @@
 @page "/"
 @inject RPAChat.App.Services.RpaAgentClient AgentClient
+@inject IJSRuntime JS
 
 <PageTitle>RPA Chat</PageTitle>
 
-<section class="chat-shell">
-    <header class="chat-header">
-        <div>
-            <p class="eyebrow">LangChain + RPA</p>
-            <h1>RPA Chat</h1>
+<section class="rpa-night">
+    <header class="rpa-hero">
+        <div class="brand-mark" aria-hidden="true">
+            <span>R</span>
         </div>
-        <span class="status-pill">@StatusText</span>
+
+        <p class="hero-kicker">RAG + Playwright automation</p>
+        <h1>Bienvenido a <span>RPA Chat</span></h1>
+        <p class="hero-copy">
+            Lanza altas de producto, consulta el contexto del agente y controla el flujo RPA desde una consola oscura, rapida y enfocada.
+        </p>
+
+        <div class="hero-status" aria-live="polite">
+            <span class="@StatusDotClass" aria-hidden="true"></span>
+            <span>@StatusText</span>
+        </div>
     </header>
 
-    <div class="chat-panel">
-        <div class="messages" aria-live="polite">
+    <section class="command-panel" aria-label="Consola de chat RPA">
+        <div class="command-topline">
+            <div>
+                <p class="panel-label">Sesion activa</p>
+                <p class="panel-value">@ShortSessionId</p>
+            </div>
+            <div>
+                <p class="panel-label">API</p>
+                <p class="panel-value">127.0.0.1:8000</p>
+            </div>
+            <div>
+                <p class="panel-label">Formulario</p>
+                <p class="panel-value">localhost:8081</p>
+            </div>
+        </div>
+
+        <div id="chat-scroll" class="chat-window" aria-live="polite">
             @foreach (var message in Messages)
             {
-                <article class="message @message.Role">
-                    <div class="message-label">@message.Label</div>
-                    <div class="message-body">@message.Text</div>
+                <article class="@MessageRowClass(message)">
+                    <div class="@AvatarClass(message)" aria-hidden="true">@AvatarText(message)</div>
+
+                    <div class="message-stack">
+                        <div class="@MessageMetaClass(message)">@message.Label</div>
+                        <div class="@BubbleClass(message)">@message.Text</div>
+                    </div>
                 </article>
             }
         </div>
 
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
-            <div class="alert alert-danger mb-3" role="alert">@ErrorMessage</div>
+            <div class="error-strip" role="alert">
+                @ErrorMessage
+            </div>
         }
 
-        <EditForm Model="this" OnSubmit="SendMessageAsync" class="composer">
+        <EditForm Model="this" OnSubmit="SendMessageAsync" class="prompt-form">
             <InputTextArea
-                class="form-control"
-                rows="3"
-                placeholder="Dame de alta un producto: Camiseta Negra Roma, precio 19.99, stock 25, categoria camisetas"
+                class="prompt-input"
+                rows="4"
+                placeholder="Ejemplo: Alta producto Camiseta Negra Roma, precio 19.99, stock 25, categoria camisetas"
                 @bind-Value="Prompt"
                 disabled="@IsSending" />
-            <button class="btn btn-primary" type="submit" disabled="@(!CanSend)">
-                @(IsSending ? "Enviando..." : "Enviar")
-            </button>
+
+            <div class="prompt-actions">
+                <div class="quick-actions" aria-label="Acciones rapidas">
+                    @foreach (var action in QuickActions)
+                    {
+                        <button type="button" class="prompt-chip" @onclick="() => ApplyPrompt(action.Prompt)" disabled="@IsSending">
+                            <span aria-hidden="true">@action.Mark</span>
+                            @action.Label
+                        </button>
+                    }
+                </div>
+
+                <button class="@SendButtonClass" type="submit" disabled="@(!CanSend)">
+                    @if (IsSending)
+                    {
+                        <span class="spinner" aria-hidden="true"></span>
+                    }
+                    <span>@(IsSending ? "Procesando" : "Enviar")</span>
+                </button>
+            </div>
         </EditForm>
-    </div>
+    </section>
+
+    <section class="feature-grid" aria-label="Capacidades del agente">
+        @foreach (var feature in FeatureSignals)
+        {
+            <article class="feature-card">
+                <div class="feature-icon" aria-hidden="true">@feature.Mark</div>
+                <h2>@feature.Title</h2>
+                <p>@feature.Text</p>
+            </article>
+        }
+    </section>
 </section>
 
 @code {
+    private const string ChatScrollId = "chat-scroll";
     private readonly string _sessionId = $"rpa-chat-app-{Guid.NewGuid():N}";
+    private bool _shouldScroll = true;
 
     private List<ChatMessage> Messages { get; } =
     [
-        new("assistant", "Agente", "Listo. Escribe una peticion de alta de producto y la enviare al agente RPA.")
+        new("assistant", "Agente", "Listo para ejecutar altas de producto con RAG, parametros y Playwright en el mismo flujo.")
+    ];
+
+    private IReadOnlyList<QuickAction> QuickActions { get; } =
+    [
+        new("+", "Alta rapida", "Alta producto: Camiseta Negra Roma, precio 19.99, stock 25, categoria camisetas"),
+        new("RAG", "Consultar contexto", "Que datos necesitas para completar un alta de producto?"),
+        new("API", "Estado API", "Comprueba si la API Python y el formulario estan disponibles."),
+        new("RUN", "Ejecutar demo", "Ejecuta una prueba completa de alta de producto con datos de ejemplo.")
+    ];
+
+    private IReadOnlyList<FeatureSignal> FeatureSignals { get; } =
+    [
+        new("01", "RPA guiado por chat", "Describe la tarea en lenguaje natural y el agente prepara los pasos del workflow."),
+        new("02", "Contexto RAG", "Usa la base de conocimiento para decidir parametros, validaciones y campos del formulario."),
+        new("03", "Automatizacion Playwright", "Conecta con el formulario local y ejecuta la accion sin salir de la app.")
     ];
 
     private string Prompt { get; set; } = "";
@@ -55,7 +131,32 @@
     private bool IsSending { get; set; }
 
     private bool CanSend => !IsSending && !string.IsNullOrWhiteSpace(Prompt);
-    private string StatusText => IsSending ? "Procesando" : "Conectado";
+    private string StatusText => IsSending ? "Procesando agente" : "Agente conectado";
+    private string ShortSessionId => _sessionId.Replace("rpa-chat-app-", "")[..8];
+
+    private string StatusDotClass => IsSending
+        ? "status-dot status-dot-busy"
+        : "status-dot status-dot-ready";
+
+    private string SendButtonClass => CanSend
+        ? "send-button"
+        : "send-button send-button-disabled";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender && !_shouldScroll)
+        {
+            return;
+        }
+
+        _shouldScroll = false;
+        await JS.InvokeVoidAsync("rpaChat.scrollToLatest", ChatScrollId);
+    }
+
+    private void ApplyPrompt(string prompt)
+    {
+        Prompt = prompt;
+    }
 
     private async Task SendMessageAsync()
     {
@@ -70,6 +171,7 @@
         IsSending = true;
 
         Messages.Add(new ChatMessage("user", "Tu", userPrompt));
+        _shouldScroll = true;
 
         try
         {
@@ -92,8 +194,31 @@
         finally
         {
             IsSending = false;
+            _shouldScroll = true;
         }
     }
 
+    private static bool IsUser(ChatMessage message) => message.Role == "user";
+
+    private static string MessageRowClass(ChatMessage message) => IsUser(message)
+        ? "message-row message-row-user"
+        : "message-row message-row-agent";
+
+    private static string MessageMetaClass(ChatMessage message) => IsUser(message)
+        ? "message-meta message-meta-user"
+        : "message-meta";
+
+    private static string BubbleClass(ChatMessage message) => IsUser(message)
+        ? "message-bubble message-bubble-user"
+        : "message-bubble message-bubble-agent";
+
+    private static string AvatarClass(ChatMessage message) => IsUser(message)
+        ? "message-avatar message-avatar-user"
+        : "message-avatar message-avatar-agent";
+
+    private static string AvatarText(ChatMessage message) => IsUser(message) ? "TU" : "AI";
+
     private sealed record ChatMessage(string Role, string Label, string Text);
+    private sealed record QuickAction(string Mark, string Label, string Prompt);
+    private sealed record FeatureSignal(string Mark, string Title, string Text);
 }

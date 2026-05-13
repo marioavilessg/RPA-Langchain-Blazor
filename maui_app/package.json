@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "tailwind:build": "tailwindcss -i ./RPAChat.App/Styles/tailwind.css -o ./RPAChat.App/wwwroot/css/tailwind.css --minify",
+    "tailwind:watch": "tailwindcss -i ./RPAChat.App/Styles/tailwind.css -o ./RPAChat.App/wwwroot/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
