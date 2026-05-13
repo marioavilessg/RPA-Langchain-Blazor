@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alta de Producto</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+        }
+        .container { display: flex; gap: 24px; max-width: 900px; width: 100%; }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.08);
+            padding: 32px;
+        }
+        .form-card { flex: 1; min-width: 380px; }
+        .recorder-card { width: 260px; }
+        h1 { font-size: 1.5rem; color: #1a1a2e; margin-bottom: 24px; }
+        h2 { font-size: 1.1rem; color: #1a1a2e; margin-bottom: 16px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; color: #333; font-size: .9rem; }
+        input, select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d0d5dd;
+            border-radius: 8px;
+            font-size: .95rem;
+            margin-bottom: 18px;
+            transition: border .2s, box-shadow .2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4a6cf7;
+            box-shadow: 0 0 0 3px rgba(74,108,247,.15);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s, color .2s;
+        }
+        .btn-primary { background: #4a6cf7; color: #fff; width: 100%; }
+        .btn-primary:hover { background: #3b5de7; }
+        .btn-sm { padding: 8px 16px; font-size: .85rem; width: 100%; margin-bottom: 8px; }
+        .btn-start { background: #22c55e; color: #fff; }
+        .btn-start:hover { background: #16a34a; }
+        .btn-stop { background: #ef4444; color: #fff; }
+        .btn-stop:hover { background: #dc2626; }
+        .btn-download { background: #3b82f6; color: #fff; }
+        .btn-download:hover { background: #2563eb; }
+        .btn-disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+        #toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: #22c55e;
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,.15);
+        }
+        #toast.show { display: block; animation: slideIn .3s ease; }
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .rec-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: .85rem;
+            color: #ef4444;
+            font-weight: 600;
+        }
+        .rec-indicator.active { display: flex; }
+        .rec-dot { width: 10px; height: 10px; background: #ef4444; border-radius: 50%; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: .3; } }
+        .step-count { font-size: .8rem; color: #64748b; margin-top: 4px; min-height: 1.2em; }
+
+        @media (max-width: 760px) {
+            body { padding: 24px 14px; }
+            .container { flex-direction: column; }
+            .form-card, .recorder-card { min-width: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card form-card">
+            <h1>Alta de Producto</h1>
+            <form id="product_form" autocomplete="off">
+                <label for="nombre">Nombre del producto</label>
+                <input type="text" id="nombre" name="nombre" placeholder="Ej: Camiseta Negra Roma" required>
+
+                <label for="precio">Precio (&euro;)</label>
+                <input type="number" id="precio" name="precio" step="0.01" min="0" placeholder="Ej: 19.99" required>
+
+                <label for="stock">Stock (unidades)</label>
+                <input type="number" id="stock" name="stock" step="1" min="0" placeholder="Ej: 25" required>
+
+                <label for="categoria">Categor&iacute;a</label>
+                <select id="categoria" name="categoria" required>
+                    <option value="">-- Seleccionar --</option>
+                    <option value="camisetas">Camisetas</option>
+                    <option value="sudaderas">Sudaderas</option>
+                    <option value="pantalones">Pantalones</option>
+                    <option value="accesorios">Accesorios</option>
+                </select>
+
+                <button type="submit" id="btn_guardar" class="btn btn-primary">Guardar</button>
+            </form>
+        </div>
+
+        <div class="card recorder-card">
+            <h2>Recorder</h2>
+            <div id="rec_indicator" class="rec-indicator">
+                <span class="rec-dot"></span> Grabando...
+            </div>
+            <button id="btn_start" class="btn btn-sm btn-start" onclick="recorder.start()">Start</button>
+            <button id="btn_stop" class="btn btn-sm btn-stop btn-disabled" onclick="recorder.stop()" disabled>Stop</button>
+            <button id="btn_download" class="btn btn-sm btn-download btn-disabled" onclick="recorder.download()" disabled>Download JSON</button>
+            <p id="step_count" class="step-count"></p>
+        </div>
+    </div>
+
+    <div id="toast">Producto Guardado correctamente</div>
+
+    <script>
+        document.getElementById("product_form").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const form = e.target;
+            if (!form.checkValidity()) return;
+
+            const toast = document.getElementById("toast");
+            toast.classList.add("show");
+            setTimeout(() => { toast.classList.remove("show"); }, 3000);
+            form.reset();
+        });
+
+        const recorder = (() => {
+            let recording = false;
+            let steps = [];
+            const FIELD_PLACEHOLDERS = {
+                nombre: "{{nombre}}",
+                precio: "{{precio}}",
+                stock: "{{stock}}",
+                categoria: "{{categoria}}"
+            };
+
+            function getSelector(el) {
+                if (el.id) return "#" + el.id;
+                if (el.name) return "[name=\"" + el.name + "\"]";
+                return el.tagName.toLowerCase();
+            }
+
+            function targetFor(el) {
+                return { by: "css", value: getSelector(el) };
+            }
+
+            function shouldIgnore(el) {
+                return Boolean(el.closest(".recorder-card"));
+            }
+
+            function handleClick(e) {
+                if (!recording) return;
+                const el = e.target;
+                if (shouldIgnore(el)) return;
+                if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) return;
+
+                steps.push({ type: "click", target: targetFor(el) });
+                updateCount();
+            }
+
+            function handleInput(e) {
+                if (!recording) return;
+                const el = e.target;
+                if (shouldIgnore(el)) return;
+                if (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA") return;
+
+                const selector = getSelector(el);
+                const placeholder = FIELD_PLACEHOLDERS[el.name || el.id] || el.value;
+                steps = steps.filter(s => !(s.type === "type" && s.target.value === selector));
+                steps.push({ type: "type", target: targetFor(el), value: placeholder });
+                updateCount();
+            }
+
+            function handleChange(e) {
+                if (!recording) return;
+                const el = e.target;
+                if (shouldIgnore(el)) return;
+                if (el.tagName !== "SELECT") return;
+
+                const selector = getSelector(el);
+                const placeholder = FIELD_PLACEHOLDERS[el.name || el.id] || el.value;
+                steps = steps.filter(s => !(s.type === "select" && s.target.value === selector));
+                steps.push({ type: "select", target: targetFor(el), value: placeholder });
+                updateCount();
+            }
+
+            function updateCount() {
+                document.getElementById("step_count").textContent = steps.length + " pasos grabados";
+            }
+
+            function setButtons(isRecording) {
+                document.getElementById("rec_indicator").classList.toggle("active", isRecording);
+                document.getElementById("btn_start").disabled = isRecording;
+                document.getElementById("btn_start").classList.toggle("btn-disabled", isRecording);
+                document.getElementById("btn_stop").disabled = !isRecording;
+                document.getElementById("btn_stop").classList.toggle("btn-disabled", !isRecording);
+                document.getElementById("btn_download").disabled = isRecording || steps.length === 0;
+                document.getElementById("btn_download").classList.toggle("btn-disabled", isRecording || steps.length === 0);
+            }
+
+            return {
+                start() {
+                    steps = [];
+                    recording = true;
+                    document.addEventListener("click", handleClick, true);
+                    document.addEventListener("input", handleInput, true);
+                    document.addEventListener("change", handleChange, true);
+                    setButtons(true);
+                    updateCount();
+                },
+                stop() {
+                    recording = false;
+                    document.removeEventListener("click", handleClick, true);
+                    document.removeEventListener("input", handleInput, true);
+                    document.removeEventListener("change", handleChange, true);
+                    steps.push({ type: "wait_for_text", target: { by: "css", value: "#toast" }, contains: "Guardado" });
+                    setButtons(false);
+                    updateCount();
+                },
+                download() {
+                    const workflow = {
+                        id: "alta_producto",
+                        titulo: "Alta de Producto",
+                        descripcion: "Procedimiento para dar de alta un producto en el formulario web local.",
+                        app: "formulario_productos",
+                        url: window.location.origin || "http://localhost:8081",
+                        tags: ["alta", "producto", "formulario", "inventario"],
+                        param_schema: {
+                            nombre: { type: "string", description: "Nombre del producto", required: true },
+                            precio: { type: "float", description: "Precio en euros", required: true },
+                            stock: { type: "integer", description: "Unidades disponibles", required: true },
+                            categoria: {
+                                type: "enum",
+                                values: ["camisetas", "sudaderas", "pantalones", "accesorios"],
+                                description: "Categoria del producto",
+                                required: true
+                            }
+                        },
+                        steps: [
+                            { type: "wait", ms: 500 },
+                            ...steps
+                        ]
+                    };
+
+                    const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: "application/json" });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = "alta_producto_v1.workflow.json";
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                }
+            };
+        })();
+    </script>
+</body>
+</html>

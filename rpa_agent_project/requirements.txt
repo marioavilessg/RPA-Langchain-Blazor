@@ -1,0 +1,11 @@
+langchain
+langchain-openai
+langchain-community
+langgraph
+chromadb
+playwright
+fastapi
+uvicorn
+pydantic
+sentence-transformers
+python-dotenv

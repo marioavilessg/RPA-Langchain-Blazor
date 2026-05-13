@@ -1,0 +1,99 @@
+@page "/"
+@inject RPAChat.App.Services.RpaAgentClient AgentClient
+
+<PageTitle>RPA Chat</PageTitle>
+
+<section class="chat-shell">
+    <header class="chat-header">
+        <div>
+            <p class="eyebrow">LangChain + RPA</p>
+            <h1>RPA Chat</h1>
+        </div>
+        <span class="status-pill">@StatusText</span>
+    </header>
+
+    <div class="chat-panel">
+        <div class="messages" aria-live="polite">
+            @foreach (var message in Messages)
+            {
+                <article class="message @message.Role">
+                    <div class="message-label">@message.Label</div>
+                    <div class="message-body">@message.Text</div>
+                </article>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="alert alert-danger mb-3" role="alert">@ErrorMessage</div>
+        }
+
+        <EditForm Model="this" OnSubmit="SendMessageAsync" class="composer">
+            <InputTextArea
+                class="form-control"
+                rows="3"
+                placeholder="Dame de alta un producto: Camiseta Negra Roma, precio 19.99, stock 25, categoria camisetas"
+                @bind-Value="Prompt"
+                disabled="@IsSending" />
+            <button class="btn btn-primary" type="submit" disabled="@(!CanSend)">
+                @(IsSending ? "Enviando..." : "Enviar")
+            </button>
+        </EditForm>
+    </div>
+</section>
+
+@code {
+    private readonly string _sessionId = $"rpa-chat-app-{Guid.NewGuid():N}";
+
+    private List<ChatMessage> Messages { get; } =
+    [
+        new("assistant", "Agente", "Listo. Escribe una peticion de alta de producto y la enviare al agente RPA.")
+    ];
+
+    private string Prompt { get; set; } = "";
+    private string? ErrorMessage { get; set; }
+    private bool IsSending { get; set; }
+
+    private bool CanSend => !IsSending && !string.IsNullOrWhiteSpace(Prompt);
+    private string StatusText => IsSending ? "Procesando" : "Conectado";
+
+    private async Task SendMessageAsync()
+    {
+        if (!CanSend)
+        {
+            return;
+        }
+
+        var userPrompt = Prompt.Trim();
+        Prompt = "";
+        ErrorMessage = null;
+        IsSending = true;
+
+        Messages.Add(new ChatMessage("user", "Tu", userPrompt));
+
+        try
+        {
+            var result = await AgentClient.SendAsync(userPrompt, _sessionId);
+            if (result.Ok)
+            {
+                Messages.Add(new ChatMessage("assistant", "Agente", result.Response));
+            }
+            else
+            {
+                ErrorMessage = result.Error ?? "El agente no pudo completar la peticion.";
+                Messages.Add(new ChatMessage("assistant", "Agente", ErrorMessage));
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"No se pudo conectar con la API Python: {ex.Message}";
+            Messages.Add(new ChatMessage("assistant", "Agente", ErrorMessage));
+        }
+        finally
+        {
+            IsSending = false;
+        }
+    }
+
+    private sealed record ChatMessage(string Role, string Label, string Text);
+}
