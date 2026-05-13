@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import unicodedata
 import warnings
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from langchain.tools import tool
 from langchain_core._api.deprecation import LangChainDeprecationWarning
@@ -24,6 +27,7 @@ load_environment()
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DB_PATH = BASE_DIR / "rag" / "chroma_db"
+DEFAULT_TIMEOUT_SECONDS = 2.0
 
 
 def _json(data: Any) -> str:
@@ -110,6 +114,82 @@ def _procedure_from_metadata(metadata: dict[str, Any], score: float | None = Non
     if score is not None:
         procedure["score"] = score
     return procedure
+
+
+def _with_health_path(base_url: str) -> str:
+    base_url = base_url.rstrip("/")
+    if base_url.endswith("/health"):
+        return base_url
+    return f"{base_url}/health"
+
+
+def _http_check(name: str, url: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> dict[str, Any]:
+    started_at = time.perf_counter()
+    request = Request(url, headers={"User-Agent": "RPAChat-healthcheck/1.0"})
+
+    try:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            status_code = int(response.status)
+            return {
+                "name": name,
+                "ok": 200 <= status_code < 400,
+                "url": url,
+                "status_code": status_code,
+                "latency_ms": round((time.perf_counter() - started_at) * 1000),
+            }
+    except HTTPError as exc:
+        return {
+            "name": name,
+            "ok": False,
+            "url": url,
+            "status_code": exc.code,
+            "latency_ms": round((time.perf_counter() - started_at) * 1000),
+            "error": f"HTTP {exc.code}: {exc.reason}",
+        }
+    except (TimeoutError, URLError, OSError) as exc:
+        return {
+            "name": name,
+            "ok": False,
+            "url": url,
+            "latency_ms": round((time.perf_counter() - started_at) * 1000),
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+
+@tool
+def check_runtime_services() -> dict[str, Any]:
+    """
+    Comprueba si los servicios locales del proyecto estan disponibles.
+    Usala cuando el usuario pregunte por el estado de la API Python, el formulario web,
+    health checks, disponibilidad del entorno, puertos locales o diagnostico de arranque.
+    Devuelve el estado de la API, el formulario y la base RAG local.
+    """
+    print("[TOOL] check_runtime_services()")
+
+    api_port = os.getenv("API_PORT", "8000")
+    api_base_url = os.getenv("API_URL") or os.getenv("API_BASE_URL") or f"http://127.0.0.1:{api_port}"
+    api_url = _with_health_path(api_base_url)
+
+    form_port = os.getenv("WEB_FORM_PORT", "8081")
+    form_url = os.getenv("FORM_URL") or f"http://localhost:{form_port}"
+
+    checks = [
+        _http_check("API Python", api_url),
+        _http_check("Formulario web", form_url),
+        {
+            "name": "Base RAG",
+            "ok": DB_PATH.exists(),
+            "path": str(DB_PATH),
+            "error": None if DB_PATH.exists() else "No existe la base Chroma. Ejecuta python rag\\index_procedures.py.",
+        },
+    ]
+
+    response = {
+        "ok": all(check.get("ok") for check in checks),
+        "checks": checks,
+    }
+    print(f"[TOOL] check_runtime_services -> {_json(response)}")
+    return response
 
 
 @tool

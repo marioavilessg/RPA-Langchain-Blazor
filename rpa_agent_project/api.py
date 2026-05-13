@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import unicodedata
 import uuid
 from typing import Any
 
@@ -12,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from agent.agent import agent
+from agent.tools import check_runtime_services
 from shared.config import load_environment
 
 
@@ -42,6 +44,66 @@ def _compact_json(value: Any) -> str:
         return str(value)
 
 
+def _normalize(text: str) -> str:
+    decomposed = unicodedata.normalize("NFD", text)
+    without_accents = "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+    return without_accents.lower()
+
+
+def _is_runtime_status_request(message: str) -> bool:
+    normalized = _normalize(message)
+    status_terms = (
+        "api",
+        "formulario",
+        "health",
+        "puerto",
+        "servicio",
+        "entorno",
+    )
+    action_terms = (
+        "comprueba",
+        "comprobar",
+        "estado",
+        "disponible",
+        "disponibilidad",
+        "funciona",
+        "funcionando",
+        "conectado",
+        "conectada",
+        "responde",
+    )
+    return any(term in normalized for term in status_terms) and any(term in normalized for term in action_terms)
+
+
+def _format_runtime_status(result: dict[str, Any]) -> str:
+    checks = result.get("checks", [])
+    lines = ["Estado del entorno:"]
+
+    for check in checks:
+        name = check.get("name", "Servicio")
+        target = check.get("url") or check.get("path") or "sin ruta"
+        ok = bool(check.get("ok"))
+        status = "disponible" if ok else "no disponible"
+
+        detail_parts = []
+        if check.get("status_code") is not None:
+            detail_parts.append(f"HTTP {check['status_code']}")
+        if check.get("latency_ms") is not None:
+            detail_parts.append(f"{check['latency_ms']} ms")
+        if check.get("error"):
+            detail_parts.append(str(check["error"]))
+
+        detail = f" ({', '.join(detail_parts)})" if detail_parts else ""
+        lines.append(f"- {name}: {status} en {target}{detail}.")
+
+    if result.get("ok"):
+        lines.append("Todo esta listo para ejecutar el flujo RPA.")
+    else:
+        lines.append("Revisa los servicios marcados como no disponibles antes de ejecutar el workflow.")
+
+    return "\n".join(lines)
+
+
 def _trace_message(message: Any) -> str | None:
     message_type = getattr(message, "type", "")
     tool_calls = getattr(message, "tool_calls", None) or []
@@ -67,6 +129,10 @@ def _trace_message(message: Any) -> str | None:
 
 
 def run_agent_turn(message: str, session_id: str) -> str:
+    if _is_runtime_status_request(message):
+        result = check_runtime_services.invoke({})
+        return _format_runtime_status(result)
+
     config = {"configurable": {"thread_id": session_id}}
     seen_message_ids: set[str] = set()
     final_text = ""

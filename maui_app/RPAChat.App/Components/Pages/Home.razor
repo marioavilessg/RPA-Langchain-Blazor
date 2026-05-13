@@ -1,50 +1,55 @@
 @page "/"
+@implements IAsyncDisposable
 @inject RPAChat.App.Services.RpaAgentClient AgentClient
 @inject IJSRuntime JS
 
 <PageTitle>RPA Chat</PageTitle>
 
-<section class="rpa-night">
-    <header class="rpa-hero">
-        <div class="brand-mark" aria-hidden="true">
-            <span>R</span>
+<section class="relative z-0 mx-auto min-h-screen w-full max-w-[1180px] px-2.5 pb-6 pt-8 sm:px-4 md:px-5 md:pb-9 md:pt-11">
+    <header class="flex flex-col items-center pb-7 pt-2 text-center md:pt-5">
+        <div class="relative mb-[18px] grid h-11 w-11 place-items-center rounded-lg border border-rpa-cyan/25 bg-[#0b0d0d] bg-[linear-gradient(135deg,rgba(245,184,71,0.16),rgba(87,245,223,0.12))] text-lg font-extrabold text-rpa-cyan shadow-[0_18px_48px_rgba(0,0,0,0.34),inset_0_0_0_1px_rgba(255,255,255,0.04)] sm:h-12 sm:w-12" aria-hidden="true">
+            <span class="absolute h-3.5 w-8 rotate-[-38deg] rounded-full border-2 border-b-transparent border-r-transparent border-l-rpa-amber border-t-rpa-amber"></span>
+            <span class="absolute h-3.5 w-8 rotate-[142deg] rounded-full border-2 border-b-transparent border-r-transparent border-l-rpa-cyan border-t-rpa-cyan"></span>
+            <span class="relative z-10">R</span>
         </div>
 
-        <p class="hero-kicker">RAG + Playwright automation</p>
-        <h1>Bienvenido a <span>RPA Chat</span></h1>
-        <p class="hero-copy">
+        <p class="mb-2.5 text-xs font-bold uppercase tracking-[0.14em] text-rpa-muted">RAG + Playwright automation</p>
+        <h1 class="m-0 text-[2.05rem] font-extrabold leading-none tracking-normal text-rpa-text sm:text-5xl lg:text-6xl">
+            Bienvenido a <span class="text-rpa-cyan drop-shadow-[0_0_28px_rgba(87,245,223,0.18)]">RPA Chat</span>
+        </h1>
+        <p class="mt-4 w-full max-w-[680px] text-[0.92rem] leading-relaxed text-rpa-muted sm:text-base">
             Lanza altas de producto, consulta el contexto del agente y controla el flujo RPA desde una consola oscura, rapida y enfocada.
         </p>
 
-        <div class="hero-status" aria-live="polite">
+        <div class="mt-5 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-[0.82rem] font-semibold text-[#cbd5d2]" aria-live="polite">
             <span class="@StatusDotClass" aria-hidden="true"></span>
             <span>@StatusText</span>
         </div>
     </header>
 
-    <section class="command-panel" aria-label="Consola de chat RPA">
-        <div class="command-topline">
-            <div>
-                <p class="panel-label">Sesion activa</p>
-                <p class="panel-value">@ShortSessionId</p>
+    <section class="overflow-hidden rounded-lg border border-rpa-cyan/20 bg-rpa-panel bg-[linear-gradient(180deg,rgba(87,245,223,0.04),rgba(245,184,71,0.015))] shadow-[0_30px_80px_rgba(0,0,0,0.48),inset_0_0_0_1px_rgba(255,255,255,0.035)]" aria-label="Consola de chat RPA">
+        <div class="grid grid-cols-1 gap-px border-b border-white/[0.08] bg-white/[0.04] md:grid-cols-3">
+            <div class="@ToplineItemClass">
+                <p class="@PanelLabelClass">Sesion activa</p>
+                <p class="@PanelValueClass">@ShortSessionId</p>
             </div>
-            <div>
-                <p class="panel-label">API</p>
-                <p class="panel-value">127.0.0.1:8000</p>
+            <div class="@ToplineItemClass">
+                <p class="@PanelLabelClass">API</p>
+                <p class="@PanelValueClass">127.0.0.1:8000</p>
             </div>
-            <div>
-                <p class="panel-label">Formulario</p>
-                <p class="panel-value">localhost:8081</p>
+            <div class="@ToplineItemClass">
+                <p class="@PanelLabelClass">Formulario</p>
+                <p class="@PanelValueClass">localhost:8081</p>
             </div>
         </div>
 
-        <div id="chat-scroll" class="chat-window" aria-live="polite">
+        <div id="chat-scroll" class="flex min-h-[240px] max-h-[44vh] flex-col gap-4 overflow-y-auto bg-[#0c0e0e] bg-[linear-gradient(180deg,rgba(255,255,255,0.018),transparent_42%)] px-3.5 py-[18px] md:min-h-[270px] md:max-h-[40vh] md:px-5 md:py-[22px]" aria-live="polite">
             @foreach (var message in Messages)
             {
                 <article class="@MessageRowClass(message)">
                     <div class="@AvatarClass(message)" aria-hidden="true">@AvatarText(message)</div>
 
-                    <div class="message-stack">
+                    <div class="max-w-full sm:max-w-[calc(100%-48px)] lg:max-w-[710px]">
                         <div class="@MessageMetaClass(message)">@message.Label</div>
                         <div class="@BubbleClass(message)">@message.Text</div>
                     </div>
@@ -54,25 +59,27 @@
 
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
-            <div class="error-strip" role="alert">
+            <div class="border-t border-rpa-rose/25 bg-red-950/25 px-[18px] py-3 text-sm font-semibold text-rose-200" role="alert">
                 @ErrorMessage
             </div>
         }
 
-        <EditForm Model="this" OnSubmit="SendMessageAsync" class="prompt-form">
-            <InputTextArea
-                class="prompt-input"
+        <EditForm Model="this" OnSubmit="SendMessageAsync" class="border-t border-white/[0.08] bg-[#070808]/95 p-3 md:p-4">
+            <textarea
+                id="@PromptInputId"
+                class="@PromptInputClass"
                 rows="4"
                 placeholder="Ejemplo: Alta producto Camiseta Negra Roma, precio 19.99, stock 25, categoria camisetas"
-                @bind-Value="Prompt"
-                disabled="@IsSending" />
+                @bind="Prompt"
+                @bind:event="oninput"
+                disabled="@IsSending"></textarea>
 
-            <div class="prompt-actions">
-                <div class="quick-actions" aria-label="Acciones rapidas">
+            <div class="mt-3 flex flex-col items-stretch justify-between gap-3.5 md:flex-row md:items-center">
+                <div class="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-1 sm:flex-wrap" aria-label="Acciones rapidas">
                     @foreach (var action in QuickActions)
                     {
-                        <button type="button" class="prompt-chip" @onclick="() => ApplyPrompt(action.Prompt)" disabled="@IsSending">
-                            <span aria-hidden="true">@action.Mark</span>
+                        <button type="button" class="@PromptChipClass" @onclick="() => ApplyPrompt(action.Prompt)" disabled="@IsSending">
+                            <span class="inline-grid h-5 min-w-[22px] place-items-center rounded-md bg-rpa-cyan/10 text-[0.62rem] font-extrabold text-rpa-cyan" aria-hidden="true">@action.Mark</span>
                             @action.Label
                         </button>
                     }
@@ -81,7 +88,7 @@
                 <button class="@SendButtonClass" type="submit" disabled="@(!CanSend)">
                     @if (IsSending)
                     {
-                        <span class="spinner" aria-hidden="true"></span>
+                        <span class="h-4 w-4 animate-spin rounded-full border-2 border-[#041010]/30 border-t-[#041010]" aria-hidden="true"></span>
                     }
                     <span>@(IsSending ? "Procesando" : "Enviar")</span>
                 </button>
@@ -89,13 +96,13 @@
         </EditForm>
     </section>
 
-    <section class="feature-grid" aria-label="Capacidades del agente">
+    <section class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="Capacidades del agente">
         @foreach (var feature in FeatureSignals)
         {
-            <article class="feature-card">
-                <div class="feature-icon" aria-hidden="true">@feature.Mark</div>
-                <h2>@feature.Title</h2>
-                <p>@feature.Text</p>
+            <article class="min-w-0 rounded-lg border border-white/[0.08] bg-white/[0.035] p-[18px] text-center">
+                <div class="mx-auto mb-3 grid h-[38px] w-[38px] place-items-center rounded-lg border border-rpa-cyan/20 bg-rpa-cyan/[0.07] font-mono text-xs font-extrabold text-rpa-cyan" aria-hidden="true">@feature.Mark</div>
+                <h2 class="m-0 text-base font-bold leading-tight tracking-normal text-[#edf7f5]">@feature.Title</h2>
+                <p class="mt-2 text-[0.86rem] leading-[1.48] text-rpa-muted">@feature.Text</p>
             </article>
         }
     </section>
@@ -103,7 +110,14 @@
 
 @code {
     private const string ChatScrollId = "chat-scroll";
+    private const string PromptInputId = "prompt-input";
+    private const string ToplineItemClass = "min-w-0 bg-[#0a0c0c]/80 px-4 py-3.5";
+    private const string PanelLabelClass = "mb-1 text-[0.68rem] font-extrabold uppercase tracking-[0.12em] text-rpa-faint";
+    private const string PanelValueClass = "overflow-hidden truncate font-mono text-[0.78rem] font-semibold text-[#d9e5e2]";
+    private const string PromptInputClass = "block w-full min-h-[132px] resize-y rounded-lg border border-rpa-cyan/20 bg-[#0d1010] bg-[linear-gradient(180deg,rgba(255,255,255,0.035),transparent)] px-4 py-[15px] text-[0.96rem] leading-[1.55] text-rpa-text outline-none transition placeholder:text-[#707b79] focus:border-rpa-cyan/60 focus:bg-[#101414] focus:shadow-[0_0_0_3px_rgba(87,245,223,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rpa-cyan/55 disabled:cursor-not-allowed disabled:opacity-70 md:min-h-[116px]";
+    private const string PromptChipClass = "inline-flex min-h-[34px] w-full items-center justify-start gap-2 rounded-lg border border-white/[0.08] bg-white/[0.045] px-2.5 py-[7px] text-[0.76rem] font-bold leading-tight text-[#d7e3e0] transition hover:-translate-y-px hover:border-rpa-cyan/30 hover:bg-rpa-cyan/[0.08] hover:text-[#f4fffd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rpa-cyan/55 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto";
     private readonly string _sessionId = $"rpa-chat-app-{Guid.NewGuid():N}";
+    private DotNetObjectReference<Home>? _dotNetReference;
     private bool _shouldScroll = true;
 
     private List<ChatMessage> Messages { get; } =
@@ -135,15 +149,21 @@
     private string ShortSessionId => _sessionId.Replace("rpa-chat-app-", "")[..8];
 
     private string StatusDotClass => IsSending
-        ? "status-dot status-dot-busy"
-        : "status-dot status-dot-ready";
+        ? "inline-block h-2 w-2 shrink-0 animate-pulse-dot rounded-full bg-rpa-amber text-rpa-amber shadow-[0_0_14px_currentColor]"
+        : "inline-block h-2 w-2 shrink-0 animate-pulse-dot rounded-full bg-rpa-green text-rpa-green shadow-[0_0_14px_currentColor]";
 
     private string SendButtonClass => CanSend
-        ? "send-button"
-        : "send-button send-button-disabled";
+        ? "inline-flex min-h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-rpa-cyan/40 bg-gradient-to-br from-rpa-cyan to-rpa-cyan2 px-[18px] py-2.5 text-[0.9rem] font-extrabold text-[#041010] shadow-[0_14px_34px_rgba(34,168,155,0.22)] transition hover:-translate-y-px hover:brightness-105 hover:shadow-[0_18px_42px_rgba(34,168,155,0.28)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rpa-cyan/55 md:w-auto md:min-w-[118px]"
+        : "inline-flex min-h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-white/[0.08] bg-white/[0.05] px-[18px] py-2.5 text-[0.9rem] font-extrabold text-[#697472] shadow-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rpa-cyan/55 disabled:cursor-not-allowed md:w-auto md:min-w-[118px]";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            _dotNetReference = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("rpaChat.bindPromptSubmit", PromptInputId, _dotNetReference);
+        }
+
         if (!firstRender && !_shouldScroll)
         {
             return;
@@ -156,6 +176,12 @@
     private void ApplyPrompt(string prompt)
     {
         Prompt = prompt;
+    }
+
+    [JSInvokable]
+    public Task SubmitPromptFromKeyboardAsync()
+    {
+        return SendMessageAsync();
     }
 
     private async Task SendMessageAsync()
@@ -201,22 +227,35 @@
     private static bool IsUser(ChatMessage message) => message.Role == "user";
 
     private static string MessageRowClass(ChatMessage message) => IsUser(message)
-        ? "message-row message-row-user"
-        : "message-row message-row-agent";
+        ? "flex flex-row-reverse items-end gap-[11px]"
+        : "flex items-end gap-[11px]";
 
     private static string MessageMetaClass(ChatMessage message) => IsUser(message)
-        ? "message-meta message-meta-user"
-        : "message-meta";
+        ? "mb-1 text-right text-[0.66rem] font-extrabold uppercase tracking-[0.1em] text-rpa-faint"
+        : "mb-1 text-[0.66rem] font-extrabold uppercase tracking-[0.1em] text-rpa-faint";
 
     private static string BubbleClass(ChatMessage message) => IsUser(message)
-        ? "message-bubble message-bubble-user"
-        : "message-bubble message-bubble-agent";
+        ? "whitespace-pre-wrap rounded-lg border border-rpa-cyan/20 bg-[linear-gradient(135deg,rgba(87,245,223,0.18),rgba(56,205,189,0.1))] px-[15px] py-[13px] text-[0.92rem] leading-[1.58] text-[#f6fffd] [overflow-wrap:anywhere]"
+        : "whitespace-pre-wrap rounded-lg border border-white/[0.08] bg-white/[0.045] px-[15px] py-[13px] text-[0.92rem] leading-[1.58] text-[#dce6e4] [overflow-wrap:anywhere]";
 
     private static string AvatarClass(ChatMessage message) => IsUser(message)
-        ? "message-avatar message-avatar-user"
-        : "message-avatar message-avatar-agent";
+        ? "hidden h-[34px] w-[34px] shrink-0 place-items-center rounded-lg border border-rpa-amber/20 bg-rpa-amber/[0.08] text-[0.62rem] font-extrabold text-rpa-amber sm:grid"
+        : "hidden h-[34px] w-[34px] shrink-0 place-items-center rounded-lg border border-rpa-cyan/20 bg-rpa-cyan/[0.08] text-[0.62rem] font-extrabold text-rpa-cyan sm:grid";
 
     private static string AvatarText(ChatMessage message) => IsUser(message) ? "TU" : "AI";
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("rpaChat.unbindPromptSubmit", PromptInputId);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        _dotNetReference?.Dispose();
+    }
 
     private sealed record ChatMessage(string Role, string Label, string Text);
     private sealed record QuickAction(string Mark, string Label, string Prompt);

@@ -11,7 +11,13 @@ with warnings.catch_warnings():
     from langchain.agents import create_agent
     from langgraph.checkpoint.memory import MemorySaver
 
-from agent.tools import extract_parameters, list_procedures, run_workflow, search_procedures
+from agent.tools import (
+    check_runtime_services,
+    extract_parameters,
+    list_procedures,
+    run_workflow,
+    search_procedures,
+)
 
 
 load_environment()
@@ -20,6 +26,8 @@ SYSTEM_PROMPT = """
 Eres un agente autonomo que automatiza procedimientos RPA sobre formularios web locales.
 
 Reglas:
+- Si el usuario pregunta por estado, disponibilidad, health check, API Python, formulario web,
+  puertos locales o diagnostico de arranque, usa check_runtime_services.
 - Usa las tools cuando una peticion requiera consultar, preparar o ejecutar un procedimiento.
 - Para una alta de producto, busca primero el procedimiento con search_procedures.
 - Usa extract_parameters con el texto original del usuario y el param_schema del procedimiento elegido.
@@ -41,7 +49,7 @@ llm = ChatOpenAI(
 
 agent = create_agent(
     model=llm,
-    tools=[search_procedures, extract_parameters, run_workflow, list_procedures],
+    tools=[check_runtime_services, search_procedures, extract_parameters, run_workflow, list_procedures],
     system_prompt=SYSTEM_PROMPT,
     checkpointer=MemorySaver(),
 )
