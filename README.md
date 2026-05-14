@@ -12,6 +12,43 @@ Practica-RPA-RAG-MAUI/
 |-- .gitignore
 ```
 
+## Arquitectura
+
+```mermaid
+graph TB
+    User["👤 Usuario"]
+    MauiApp["📱 MAUI App<br/>Blazor Hybrid"]
+    APIServer["🔧 API REST<br/>FastAPI"]
+    Agent["🤖 Agent<br/>LangChain"]
+    LMStudio["🧠 LM Studio<br/>Tool Calling"]
+    
+    Tools["⚙️ Tools"]
+    RAG["🔍 RAG Search<br/>Chroma"]
+    Extract["📋 Extract<br/>Parameters"]
+    RPA["🤏 RPA<br/>Playwright"]
+    
+    ChromaDB["💾 Chroma DB<br/>Procedures"]
+    Form["📝 Web Form<br/>Local"]
+    
+    User -->|Pregunta| MauiApp
+    MauiApp -->|HTTP| APIServer
+    APIServer -->|create_agent| Agent
+    Agent -->|llm_call| LMStudio
+    LMStudio -->|tool_choice| Tools
+    
+    Tools -->|search_procedures| RAG
+    Tools -->|extract_parameters| Extract
+    Tools -->|run_workflow| RPA
+    
+    RAG -->|query| ChromaDB
+    Extract -->|regex/parse| Extract
+    RPA -->|browser| Form
+    
+    Agent -->|respuesta| APIServer
+    APIServer -->|JSON| MauiApp
+    MauiApp -->|muestra| User
+```
+
 ## 1. Backend Python
 
 ```powershell
@@ -53,7 +90,72 @@ Aunque se usa la API de LangChain, `create_agent` en LangChain 1.x compila el ag
 
 La opcion de implementar un `StateGraph` propio de LangGraph tendria sentido para una version ampliada con nodos explicitos de validacion, confirmacion humana antes de ejecutar el RPA, gestion de errores y varios workflows. Para esta entrega se prioriza una solucion base clara con tools tipadas y trazas visibles, manteniendo LangGraph como runtime y memoria del agente.
 
-## 4. Orden de arranque
+## 4. Trazas del Agente
+
+El agente proporciona trazas visibles en múltiples niveles:
+
+### Logs en Terminal (API)
+
+Cuando ejecutas `python api.py`, verás:
+
+```
+INFO: Started server process
+INFO: Uvicorn running on http://127.0.0.1:8000
+...
+Agent input: {user_message}
+Tool calls: [search_procedures, extract_parameters, run_workflow]
+Agent output: {final_response}
+```
+
+### Configuración de Logging
+
+En `agent/agent.py` se configura el nivel de detalle:
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)
+agent_logger = logging.getLogger("agent")
+```
+
+Niveles disponibles:
+- `DEBUG`: Traza completa de tool_input, tool_output, estado intermedio
+- `INFO`: Decisiones del agente, tools llamadas, resultado final
+- `WARNING`: Errores recuperables, fallback a alternativa
+- `ERROR`: Errores fatales que abortan la ejecución
+
+### Seguimiento en LangGraph
+
+El agente se ejecuta como `CompiledStateGraph` con `MemorySaver`. Puedes inspeccionar el historial completo:
+
+```python
+# En debug, accede al estado:
+state = agent_executor.get_state(thread_id="user_123")
+print(state["values"]["messages"])  # Todo el historial
+```
+
+### Visualización en Frontend (MAUI)
+
+La app muestra en tiempo real:
+- ✅ Procedimiento encontrado
+- 📋 Parámetros extraídos
+- ⏳ Ejecución RPA en progreso
+- ✔️ Resultado final o error
+
+### Tip para Debugging
+
+Para ver **TODAS** las trazas del agente:
+
+```powershell
+cd rpa_agent_project
+$env:PYTHONUNBUFFERED=1
+$env:LANGCHAIN_DEBUG=1
+.\venv\Scripts\activate
+python api.py
+```
+
+`LANGCHAIN_DEBUG=1` activa trazas internas de LangChain/LangGraph mostrando cada paso.
+
+## 5. Orden de arranque
 
 Usa terminales separadas para mantener vivos los servicios:
 
@@ -110,7 +212,7 @@ La app llama a la API Python en:
 http://127.0.0.1:8000
 ```
 
-## Demo
+## 6. Demo
 
 Mensaje de prueba:
 
