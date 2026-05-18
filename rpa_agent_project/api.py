@@ -192,6 +192,7 @@ def health() -> dict[str, str]:
 
 
 @app.post("/chat", response_model=ChatResponse)
+@app.post("/", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
     session_id = request.session_id or f"rpa-chat-{uuid.uuid4()}"
     try:
