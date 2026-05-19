@@ -1,9 +1,8 @@
 import os
 import sys
 from functools import partial
-from http.server import SimpleHTTPRequestHandler
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from socketserver import TCPServer
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -19,13 +18,14 @@ PORT = int(os.getenv("WEB_FORM_PORT", "8081"))
 WEB_DIR = Path(__file__).resolve().parent
 
 
-class ReusableTCPServer(TCPServer):
+class ReusableThreadingHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
+    daemon_threads = True
 
 
 Handler = partial(SimpleHTTPRequestHandler, directory=str(WEB_DIR))
 
-with ReusableTCPServer(("", PORT), Handler) as httpd:
+with ReusableThreadingHTTPServer(("", PORT), Handler) as httpd:
     print(f"Servidor corriendo en http://localhost:{PORT}")
     print(f"Sirviendo archivos desde {WEB_DIR}")
     try:
