@@ -28,4 +28,7 @@ Handler = partial(SimpleHTTPRequestHandler, directory=str(WEB_DIR))
 with ReusableTCPServer(("", PORT), Handler) as httpd:
     print(f"Servidor corriendo en http://localhost:{PORT}")
     print(f"Sirviendo archivos desde {WEB_DIR}")
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\nServidor detenido correctamente.")
